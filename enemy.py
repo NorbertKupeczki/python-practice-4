@@ -61,18 +61,25 @@ class Enemy(pygame.sprite.Sprite):
 
     def update_healthy(self):
         """ The first of your FSM functions, this one is complete """
-        self.ship_condition = ShipCondition.HEALTHY
+
         if self.hp <= 6:
             self.fsm.setstate(self.update_damaged)
+            self.ship_condition = ShipCondition.DAMAGED
 
     def update_damaged(self):
         """ Create the logic here for the ship when it's damaged """
-        self.ship_condition = ShipCondition.DAMAGED
+
+        if self.hp <= 3:
+            self.fsm.setstate(self.update_very_damaged)
+            self.ship_condition = ShipCondition.VERY_DAMAGED
 
     def update_very_damaged(self):
         """ Create the logic here for the ship when it's very damaged """
-        self.ship_condition = ShipCondition.VERY_DAMAGED
 
-    def deaded(self):
+        if self.hp <= 0:
+            self.fsm.setstate(self.dead)
+            self.ship_condition = ShipCondition.SUNK
+
+    def dead(self):
         """ Create the logic here for the ship is sunk """
         self.ship_condition = ShipCondition.SUNK

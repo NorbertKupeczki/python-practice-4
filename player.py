@@ -2,6 +2,7 @@ from enum import IntEnum
 
 import pygame
 from typing import List
+from fsm import FSM
 from shipcondition import ShipCondition
 
 PLAYER_SPEED = 1
@@ -33,6 +34,12 @@ class Player(pygame.sprite.Sprite):
         # player game data/state
         self.mouse_down = False
         self.score = 0
+
+        self.fsm = FSM()
+        self.fsm.setstate(self.update_healthy)
+        self.prev_ship_condition = ShipCondition.HEALTHY
+        self.ship_condition = ShipCondition.HEALTHY
+        self.hp = 10
 
         # set the initial state
         self.prev_ship_condition = ShipCondition.HEALTHY
@@ -69,6 +76,8 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.topleft = self._position
 
+        self.fsm.update()
+
         if self.ship_condition != self.prev_ship_condition:
             self.prev_ship_condition = self.ship_condition
             self.redraw()
@@ -93,7 +102,29 @@ class Player(pygame.sprite.Sprite):
         and resolve it. It's easy to replicate by altering your ship's
         condition whilst pointing at a new destination.
         """
-        if self.ship_condition < 4:
+        if self.ship_condition <= ShipCondition.SUNK:
             self.base = self.base_list[self.ship_condition]
             self.image = self.base.copy()
             self.rect = self.image.get_rect()
+
+    def update_healthy(self):
+        """ The first of your FSM functions, this one is complete """
+        self.ship_condition = ShipCondition.HEALTHY
+        if self.hp <= 6:
+            self.fsm.setstate(self.update_damaged)
+
+    def update_damaged(self):
+        """ Create the logic here for the ship when it's damaged """
+        self.ship_condition = ShipCondition.DAMAGED
+        if self.hp <= 3:
+            self.fsm.setstate(self.update_very_damaged)
+
+    def update_very_damaged(self):
+        """ Create the logic here for the ship when it's very damaged """
+        self.ship_condition = ShipCondition.VERY_DAMAGED
+        if self.hp <= 0:
+            self.fsm.setstate(self.dead)
+
+    def dead(self):
+        """ Create the logic here for the ship is sunk """
+        self.ship_condition = ShipCondition.SUNK

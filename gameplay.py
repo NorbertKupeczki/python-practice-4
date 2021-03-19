@@ -124,6 +124,13 @@ class GamePlay(GameState):
         Args:
             dt (float): The time between ticks.
         """
+        if self.player.score >= 2000:
+            self.player.score = 0
+            return GameStateID.WINNER_WINNER
+        elif self.player.hp <= 0:
+            self.player.hp = 10
+            return GameStateID.GAME_OVER
+
         self.resolveCannonballs()
         self.resolvePlayerCollisions(dt)
         self.group.update(dt)
@@ -165,6 +172,7 @@ class GamePlay(GameState):
         """
         if self.player.rect.collidelist(self.gamedata.gamemap.islands) > -1:
             print("Collision")
+            self.player.hp -= 1
             self.player.move_back(dt)
 
     def render(self, screen: pygame.Surface) -> None:

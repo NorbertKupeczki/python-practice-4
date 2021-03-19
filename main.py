@@ -15,7 +15,11 @@ from pytmx.util_pygame import load_pygame
 
 # user defined ones
 from gameplay import GamePlay
+from gamestate import GameStateID
+from gamemenu import GameMenu
 from gamedata import GameData
+from gamewon import GameWon
+from gameover import GameOver
 
 # define configuration variables here
 CURRENT_DIR = Path(__file__).parent
@@ -54,13 +58,14 @@ class PirateGame:
         self.costs = None
         self.gamedata = GameData()
         self.gamedata.fonts['scoreboard'] = pygame.font.Font('data/fonts/ErbosDraco1StNbpRegular-99V5.ttf', 72)
+        self.gamedata.fonts['menu'] = pygame.font.Font(pygame.font.get_default_font(), 128)
         self.gamedata.fonts['debug'] = pygame.font.Font(pygame.font.get_default_font(), 18)
         self.screen = initScreen(self.width, self.height)
         self.background_colour = (100, 149, 237)
         self.screen.fill(self.background_colour)
         self.initAudio()
         self.loadMap()
-        self.current_state = GamePlay(self.gamedata)
+        self.current_state = GameMenu(self.gamedata)
         self.running = False
 
     def initAudio(self) -> None:
@@ -72,7 +77,7 @@ class PirateGame:
         """
         print('init =', pygame.mixer.get_init())
         print('channels =', pygame.mixer.get_num_channels())
-        self.gamedata.background_audio = pygame.mixer.Sound('data/audio/the-buccaneers-haul.ogg')
+        self.gamedata.background_audio = pygame.mixer.Sound('data/audio/ambient.wav')
         self.gamedata.background_audio.play(-1)
         self.gamedata.background_audio.set_volume(self.gamedata.background_volume)
         print('length =', self.gamedata.background_audio.get_length())
@@ -164,6 +169,17 @@ class PirateGame:
 
         # delegate the update logic to the active state
         new_state = self.current_state.update(dt)
+        if self.current_state.id != new_state:
+            if new_state is GameStateID.START_MENU:
+                self.current_state = GameMenu(self.gamedata)
+            elif new_state is GameStateID.GAMEPLAY:
+                self.current_state = GamePlay(self.gamedata)
+            elif new_state is GameStateID.GAME_OVER:
+                self.current_state = GameOver(self.gamedata)
+            elif new_state is GameStateID.WINNER_WINNER:
+                self.current_state = GameWon(self.gamedata)
+            elif new_state is GameStateID.EXIT:
+                self.running = False
 
     def render(self) -> None:
         """ Renders the active game state
