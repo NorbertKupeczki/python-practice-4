@@ -4,8 +4,9 @@ import pygame
 from typing import List
 from fsm import FSM
 from shipcondition import ShipCondition
+from math import atan2, degrees
 
-PLAYER_SPEED = 1
+PLAYER_SPEED = 0.5
 
 
 class Player(pygame.sprite.Sprite):
@@ -34,6 +35,8 @@ class Player(pygame.sprite.Sprite):
         # player game data/state
         self.mouse_down = False
         self.score = 0
+        self.path = []
+        self.move_vector = [0, 0]
 
         self.fsm = FSM()
         self.fsm.setstate(self.update_healthy)
@@ -65,14 +68,9 @@ class Player(pygame.sprite.Sprite):
         Args:
             dt (float): The time elapsed since last tick
         """
-        self._old_position = self._position[:]
+        # self._old_position = self._position[:]
 
-        dest_vector = pygame.Vector2(self.destination[0], self.destination[1])
-        pos_vector = pygame.Vector2(self._position[0], self._position[1])
-
-        lerped = pos_vector.lerp(dest_vector, min(PLAYER_SPEED * dt, 1))
-        self._position[0] = lerped[0]
-        self._position[1] = lerped[1]
+        self.move_ship()
 
         self.rect.topleft = self._position
 
@@ -128,3 +126,22 @@ class Player(pygame.sprite.Sprite):
     def dead(self):
         """ Create the logic here for the ship is sunk """
         self.ship_condition = ShipCondition.SUNK
+
+    def move_ship(self):
+        if self.position == self.destination and len(self.path) > 0:
+            next_destination = self.path.pop(0)
+            self.destination[0] = int(next_destination[0])
+            self.destination[1] = int(next_destination[1])
+
+            self.move_vector[0] = (int(self._position[0]) - self.destination[0]) / 128
+            self.move_vector[1] = (int(self._position[1]) - self.destination[1]) / 128
+
+            dx = self.destination[0] - self.position[0]
+            dy = self.destination[1] - self.position[1]
+            rad = atan2(dy, dx)
+            self.rotate(degrees(rad))
+        elif self.position == self.destination:
+            self.move_vector = [0, 0]
+        else:
+            self._position[0] = self.position[0] - self.move_vector[0] * PLAYER_SPEED
+            self._position[1] = self.position[1] - self.move_vector[1] * PLAYER_SPEED

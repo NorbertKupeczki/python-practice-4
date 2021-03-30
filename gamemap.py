@@ -59,3 +59,8 @@ class GameMap:
         return pygame.Vector2(
             ((tile_xy[0] + 1) * tile_size[0]) - (tile_size[0] * 0.5),
             ((tile_xy[1] + 1) * tile_size[1]) - (tile_size[1] * 0.5))
+
+    def cost(self, world_space: pygame.Vector2):
+        tilespace = self.tile(world_space)
+        tile_cost = self.costs[tilespace[1]][tilespace[0]]
+        return tile_cost

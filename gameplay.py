@@ -1,5 +1,6 @@
 from random import randrange
 from typing import Tuple
+from queue import PriorityQueue
 
 import pygame
 import pyscroll
@@ -9,7 +10,7 @@ from enemy import Enemy
 from gamedata import GameData
 from gamestate import GameState
 from gamestate import GameStateID
-from math import atan2, degrees
+from math import atan2, degrees, sqrt
 from player import Player, ShipCondition
 
 
@@ -64,6 +65,12 @@ class GamePlay(GameState):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self.player.mouse_down = True
 
+            start_tile = self.gamedata.gamemap.tile(self.player.position)
+            end_tile = self.gamedata.gamemap.tile(self.gamedata.gamemap.inverse(event.pos))
+
+            if start_tile != end_tile and self.gamedata.gamemap.cost(self.gamedata.gamemap.inverse(event.pos)) < 100:
+                self.player.path = self.pathfinder(self.gamedata.gamemap.costs, start_tile, end_tile)
+
         # has player right clicked?
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             to_world = self.gamedata.gamemap.inverse(event.pos)
@@ -81,14 +88,14 @@ class GamePlay(GameState):
             return
 
         # if player is holding mouse btn1, update the player's position
-        if self.player.mouse_down is True:
-            to_world = self.gamedata.gamemap.inverse(event.pos)
-            self.player.destination = (to_world[0], to_world[1])
-
-            dx = self.player.destination[0] - self.player.position[0]
-            dy = self.player.destination[1] - self.player.position[1]
-            rad = atan2(dy, dx)
-            self.player.rotate(degrees(rad))
+        # if self.player.mouse_down is True:
+        #     to_world = self.gamedata.gamemap.inverse(event.pos)
+        #     self.player.destination = (to_world[0], to_world[1])
+        #
+        #     dx = self.player.destination[0] - self.player.position[0]
+        #     dy = self.player.destination[1] - self.player.position[1]
+        #     rad = atan2(dy, dx)
+        #     self.player.rotate(degrees(rad))
 
     def loadMap(self) -> None:
         """ Loads the map and spawns enemies
@@ -108,7 +115,7 @@ class GamePlay(GameState):
     def loadPlayer(self) -> None:
         """ Loads the player and sets initial position
         """
-        self.player.position = (1920, 1230)
+        self.player.position = (1856, 1216)
         self.player.destination = self.player.position
         self.player.update(0)
         self.group.add(self.player)
@@ -132,7 +139,7 @@ class GamePlay(GameState):
             return GameStateID.GAME_OVER
 
         self.resolveCannonballs()
-        self.resolvePlayerCollisions(dt)
+        # self.resolvePlayerCollisions(dt)
         self.group.update(dt)
 
         return GameStateID.GAMEPLAY
@@ -210,3 +217,73 @@ class GamePlay(GameState):
 
             screen.blit(debug_font.render(f'{self.gamedata.gamemap.tile(self.player.position)}',
                         True, (0, 0, 0)), (15, 105))
+
+            screen.blit(debug_font.render(f'Cost: {self.gamedata.gamemap.cost(self.player.position)}',
+                        True, (0, 0, 0)), (15, 130))
+
+    def pathfinder(self, cost_map, start, end):
+        frontier = PriorityQueue()
+        frontier.put((0, start))
+        came_from = dict()
+        cost_so_far = dict()
+        came_from[start] = None
+        cost_so_far[start] = 0
+
+        while not frontier.empty():
+            coordinates = frontier.get()[1]
+            current = Node(coordinates[1], coordinates[0])
+            current.update_neighbors(self.gamedata.gamemap.costs)
+
+            if current.get_position() == end:
+                break
+
+            for next in current.neighbors:
+                new_cost = cost_so_far[current.get_position()] + cost_map[next.get_position()[1]][next.get_position()[0]]
+                if next.get_position() not in cost_so_far or new_cost < cost_so_far[next.get_position()]:
+                    cost_so_far[next.get_position()] = new_cost
+                    priority = new_cost + self.heuristics(end, next.get_position())
+                    frontier.put((priority, next.get_position()))
+                    came_from[next.get_position()] = current.get_position()
+
+        return self.reconstruct_path(came_from, start, end)
+
+    def heuristics (self, p1, p2):
+        x1, y1 = p1
+        x2, y2 = p2
+        dx = abs(x1 - x2)
+        dy = abs(y1 - y2)
+        return sqrt(dx * dx + dy * dy)
+
+    def reconstruct_path(self, came_from, start, end):
+        current = end
+        path = []
+        while current != start:
+            path.append(self.gamedata.gamemap.world(current))
+            current = came_from[current]
+        path.reverse()
+        return path
+
+class Node:
+    def __init__(self, col, row) -> None:
+        self.x = row
+        self.y = col
+        self.neighbors = []
+        self.WIDTH = 60
+        self.HEIGHT = 34
+
+    def get_position(self) -> Tuple[int, int]:
+        return self.x, self.y
+
+    def update_neighbors(self, grid):
+        self.neighbors = []
+        if self.x < self.WIDTH - 1 and not grid[self.y][self.x + 1] > 100:  # DOWN
+            self.neighbors.append(Node(self.y, self.x + 1))
+
+        if self.x > 0 and not grid[self.y][self.x - 1] > 100:  # UP
+            self.neighbors.append(Node(self.y, self.x - 1))
+
+        if self.y < self.HEIGHT - 1 and not grid[self.y + 1][self.x] > 100:  # RIGHT
+            self.neighbors.append(Node(self.y + 1, self.x))
+
+        if self.y > 0 and not grid[self.y - 1][self.x] > 100:  # LEFT
+            self.neighbors.append(Node(self.y - 1, self.x))
