@@ -1,8 +1,7 @@
 import pygame
 
-from gamestate import GameState
-from gamestate import GameStateID
 from gamedata import GameData
+from gamestate import GameState, GameStateID
 
 
 class GameOver(GameState):

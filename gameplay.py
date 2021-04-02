@@ -10,7 +10,7 @@ from enemy import Enemy
 from gamedata import GameData
 from gamestate import GameState
 from gamestate import GameStateID
-from math import atan2, degrees, sqrt
+from math import sqrt
 from player import Player, ShipCondition
 
 
@@ -161,11 +161,12 @@ class GamePlay(GameState):
                 if enemy.rect.colliderect(sprite.rect):
                     self.group.remove(sprite)
                     self.cannonballs.remove(sprite)
-                    enemy.hp -= 1
-                    print(enemy.hp)
-                    self.player.score = self.player.score + 100
-                    if enemy.hp == 0:
-                        print("dead")
+                    if enemy.ship_condition is not ShipCondition.SUNK:
+                        enemy.hp -= 1
+                        print(enemy.hp)
+                        self.player.score = self.player.score + 100
+                        if enemy.hp == 0:
+                            print("dead")
 
             if sprite.position == sprite.destination:
                 # as lerping reduces distance over time, it might make
@@ -213,13 +214,13 @@ class GamePlay(GameState):
         debug_font = self.gamedata.fonts["debug"]
         if self.debug:
             screen.blit(debug_font.render(f'{int(self.player.position[0]), int(self.player.position[1])}',
-                        True, (0, 0, 0)), (15, 80))
+                                          True, (0, 0, 0)), (15, 80))
 
             screen.blit(debug_font.render(f'{self.gamedata.gamemap.tile(self.player.position)}',
-                        True, (0, 0, 0)), (15, 105))
+                                          True, (0, 0, 0)), (15, 105))
 
             screen.blit(debug_font.render(f'Cost: {self.gamedata.gamemap.cost(self.player.position)}',
-                        True, (0, 0, 0)), (15, 130))
+                                          True, (0, 0, 0)), (15, 130))
 
     def pathfinder(self, cost_map, start, end):
         frontier = PriorityQueue()
@@ -238,7 +239,8 @@ class GamePlay(GameState):
                 break
 
             for next in current.neighbors:
-                new_cost = cost_so_far[current.get_position()] + cost_map[next.get_position()[1]][next.get_position()[0]]
+                new_cost = cost_so_far[current.get_position()] + cost_map[next.get_position()[1]][
+                    next.get_position()[0]]
                 if next.get_position() not in cost_so_far or new_cost < cost_so_far[next.get_position()]:
                     cost_so_far[next.get_position()] = new_cost
                     priority = new_cost + self.heuristics(end, next.get_position())
@@ -247,7 +249,7 @@ class GamePlay(GameState):
 
         return self.reconstruct_path(came_from, start, end)
 
-    def heuristics (self, p1, p2):
+    def heuristics(self, p1, p2):
         x1, y1 = p1
         x2, y2 = p2
         dx = abs(x1 - x2)
@@ -263,6 +265,7 @@ class GamePlay(GameState):
         path.reverse()
         return path
 
+
 class Node:
     def __init__(self, col, row) -> None:
         self.x = row
@@ -276,14 +279,26 @@ class Node:
 
     def update_neighbors(self, grid):
         self.neighbors = []
-        if self.x < self.WIDTH - 1 and not grid[self.y][self.x + 1] > 100:  # DOWN
+        if self.x < self.WIDTH - 1 and not grid[self.y][self.x + 1] > 100:
             self.neighbors.append(Node(self.y, self.x + 1))
 
-        if self.x > 0 and not grid[self.y][self.x - 1] > 100:  # UP
-            self.neighbors.append(Node(self.y, self.x - 1))
+        if self.x < self.WIDTH - 1 and self.y < self.HEIGHT - 1 and not grid[self.y + 1][self.x + 1] > 100:
+            self.neighbors.append(Node(self.y + 1, self.x + 1))
 
-        if self.y < self.HEIGHT - 1 and not grid[self.y + 1][self.x] > 100:  # RIGHT
+        if self.y < self.HEIGHT - 1 and not grid[self.y + 1][self.x] > 100:
             self.neighbors.append(Node(self.y + 1, self.x))
 
-        if self.y > 0 and not grid[self.y - 1][self.x] > 100:  # LEFT
+        if self.y < self.HEIGHT - 1 and self.x > 0 and not grid[self.y + 1][self.x - 1] > 100:
+            self.neighbors.append(Node(self.y + 1, self.x - 1))
+
+        if self.x > 0 and not grid[self.y][self.x - 1] > 100:
+            self.neighbors.append(Node(self.y, self.x - 1))
+
+        if self.x > 0 and self.y > 0 and not grid[self.y - 1][self.x - 1] > 100:
+            self.neighbors.append(Node(self.y - 1, self.x - 1))
+
+        if self.y > 0 and not grid[self.y - 1][self.x] > 100:
             self.neighbors.append(Node(self.y - 1, self.x))
+
+        if self.y > 0 and self.x < self.WIDTH - 1 and not grid[self.y - 1][self.x + 1] > 100:
+            self.neighbors.append(Node(self.y - 1, self.x + 1))
